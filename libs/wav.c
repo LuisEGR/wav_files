@@ -1,9 +1,44 @@
+/****************************************************************************
+Copyright (c) 2017, Luis E. González R., Instituto Politécnico Nacional.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+****************************************************************************/
+
 #include "wav.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * Function:  newWavHeader
+ * --------------------
+ * Crea una cabecera para un archivo WAV
+ *
+ *  arguments
+ *  numChannels: Número de canales de audio,
+ *               constantes disponibles -> MONO=1, * ESTEREO=2
+ *  numMuestras: Número de muestras de audio que se escribirán en el archivo
+ *  sampleRate: Frecuencia de muestreo, en Hz, ej: 44100
+ *
+ *  returns: una estructura de tipo WAVHeader
+ *           más detalles sobre sus componentes en wav.h
+ */
 WAVHeader newWAVHeader(int numChannels, int32_t numMuestras,
                        int32_t sampleRate) {
   WAVHeader wav_header;
@@ -45,12 +80,33 @@ WAVHeader newWAVHeader(int numChannels, int32_t numMuestras,
   return wav_header;
 }
 
+/*
+ * Function:  newMuestraMono
+ * --------------------
+ * Crea una muestra de 1 canal (Mono)
+ *
+ *  arguments
+ *  valor: Valor de la muestra, double de -1 a 1
+ *
+ *  returns: una estructura MuestraMono
+ */
 MuestraMono newMuestraMono(double valor) {
   MuestraMono m;
   m.muestra = valor;
   return m;
 }
 
+/*
+ * Function:  newMuestraEstereo
+ * --------------------
+ * Crea una muestra de 2 canales (Estéreo)
+ *
+ *  arguments
+ *  left:  Valor de la muestra en el canal izquierdo, double de -1 a 1
+ *  right: Valor de la muestra en el canal derecho, double de -1 a 1
+ *
+ *  returns: una estructura MuestraEstereo
+ */
 MuestraEstereo newMuestraEstereo(double left, double right) {
   MuestraEstereo m;
   m.left = left;
@@ -58,8 +114,18 @@ MuestraEstereo newMuestraEstereo(double left, double right) {
   return m;
 }
 
+/*
+ * Function:  readHeaderWAV
+ * --------------------
+ * Lee la cabecera de un archivo WAV y la guarda en una estructura WAVHeader
+ *
+ *  arguments
+ *  *file_p: Apuntador al archivo en modo lectura o lectura/escritura binaria
+ *           modos de apertura compatibles: (rb, r+b, w+b, a+b)
+ *
+ *  returns: Una estructura WAVHeader con todos los datos de la cabecera
+ */
 WAVHeader readHeaderWAV(FILE *file_p) {
-  // FILE *fp = fopen(fileName, "rb");
   WAVHeader wh;
   if (file_p != NULL) {
     size_t byte_read;
@@ -68,6 +134,18 @@ WAVHeader readHeaderWAV(FILE *file_p) {
   return wh;
 }
 
+/*
+ * Function:  writeWAVHeader
+ * --------------------
+ * Escribe una cabecera en un archivo WAV
+ *
+ *  arguments
+ *  *file_p: Apuntador al archivo en modo escritura o lectura/escritura binaria
+ *           modos de apertura compatibles: (wb, r+b, w+b, a+b)
+ *  wav_header: Cabecera que se desea escribir (tipo WAVHeader)
+ *
+ *  returns: un entero indicando el status, 0 = success, 1 = error
+ */
 int writeWAVHeader(FILE *file_p, WAVHeader wav_header) {
   if (fwrite(&wav_header, sizeof(WAVHeader), 1, file_p) != 1) {
     printf("\nError al escribir la cabecera del archivo!");
@@ -76,6 +154,16 @@ int writeWAVHeader(FILE *file_p, WAVHeader wav_header) {
   return 1;
 }
 
+/*
+ * Function:  printHeaderWAV
+ * --------------------
+ * imprime el contenido de la cabecera en la terminal
+ *
+ *  arguments
+ *  header: Cabecera que se desea imprimir, tipo WAVHeader
+ *
+ *  returns: <none>
+ */
 void printHeaderWAV(WAVHeader header) {
   printf("------- Cabecera WAV -------\n");
   printf("ChunkID:\t%s\n", header.ChunkID);
@@ -93,6 +181,19 @@ void printHeaderWAV(WAVHeader header) {
   printf("Subchunk2Size:\t%d Bytes\n", header.Subchunk2Size);
 }
 
+/*
+ * Function:  printSamplesWAV
+ * --------------------
+ * imprime el valor de cada una de las muestras del archivo WAV
+ * se detecta automáticamente si el archivo es MONO o ESTEREO
+ *
+ *  arguments
+ *  file_p: Apuntador al archivo en modo lectura o lectura/escritura binaria
+ *          modos de apertura compatibles: (rb, r+b, w+b, a+b)
+ *  hader:  Cabecera que se desea imprimir, tipo WAVHeader
+ *
+ *  returns: <none>
+ */
 void printSamplesWAV(FILE *file_p, WAVHeader header) {
   int numMuestras = header.Subchunk2Size / (header.BitsPerSample / 8);
   int canales = header.NumChannels;
@@ -112,6 +213,18 @@ void printSamplesWAV(FILE *file_p, WAVHeader header) {
   fseek(file_p, 0, SEEK_SET);  // Regreso el puntero a su posición inicial
 }
 
+/*
+ * Function:  readSampleMono
+ * --------------------
+ * lee la muestra número index del archivo wav de 1 canal (MONO)
+ *
+ *  arguments
+ *  file_p: Apuntador al archivo en modo lectura o lectura/escritura binaria
+ *          modos de apertura compatibles: (rb, r+b, w+b, a+b)
+ *  index:  Número de la muestra a leer
+ *
+ *  returns: Una muestra de 1 canal - tipo MuestraMono
+ */
 MuestraMono readSampleMono(FILE *file_p, int index) {
   MuestraMono muestra;
   int16_t mread;
@@ -122,6 +235,18 @@ MuestraMono readSampleMono(FILE *file_p, int index) {
   return muestra;
 }
 
+/*
+ * Function:  readSampleEstereo
+ * --------------------
+ * lee la muestra número index del archivo wav de 2 canales (ESTEREO)
+ *
+ *  arguments
+ *  file_p: Apuntador al archivo en modo lectura o lectura/escritura binaria
+ *          modos de apertura compatibles: (rb, r+b, w+b, a+b)
+ *  index:  Número de la muestra a leer
+ *
+ *  returns: Una muestra de 2 canales - tipo MuestraEstereo
+ */
 MuestraEstereo readSampleEstereo(FILE *file_p, int index) {
   MuestraEstereo muestra;
   int16_t *mread = malloc(2 * sizeof(int16_t));
@@ -134,11 +259,35 @@ MuestraEstereo readSampleEstereo(FILE *file_p, int index) {
   return muestra;
 }
 
+/*
+ * Function:  writeSampleMono
+ * --------------------
+ * escribe una muestra de 1 canal en el archivo wav
+ *
+ *  arguments
+ *  file_p:  Apuntador al archivo en modo escritura o lectura/escritura binaria
+ *           modos de apertura compatibles: (wb, r+b, w+b, a+b)
+ *  muestra: Muestra a escribir - tipo MuestraMono
+ *
+ *  returns: <none>
+ */
 void writeSampleMono(FILE *file_p, MuestraMono muestra) {
   int16_t mwrite = (int16_t)(muestra.muestra * 32767);
   fwrite(&mwrite, sizeof(int16_t), 1, file_p);
 }
 
+/*
+ * Function:  writeSampleEstereo
+ * --------------------
+ * escribe una muestra de 2 canales en el archivo wav
+ *
+ *  arguments
+ *  file_p:  Apuntador al archivo en modo escritura o lectura/escritura binaria
+ *           modos de apertura compatibles: (wb, r+b, w+b, a+b)
+ *  muestra: Muestra a escribir - tipo MuestraEstereo
+ *
+ *  returns: <none>
+ */
 void writeSampleEstereo(FILE *file_p, MuestraEstereo muestra) {
   int16_t mwrite_l = (int16_t)(muestra.left * 32767);
   int16_t mwrite_r = (int16_t)(muestra.right * 32767);
